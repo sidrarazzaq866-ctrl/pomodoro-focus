@@ -1,11 +1,11 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Calm Focus", page_icon="🌙", layout="centered")
+st.set_page_config(page_title="Calm Focus", page_icon="🌙", layout="wide")
 st.markdown("""<style>
 #MainMenu, header, footer {visibility:hidden;}
 .stApp {background:#0e1822;}
-.block-container {padding-top:0.5rem; max-width:760px;}
+.block-container {padding:0; max-width:100%;}
 </style>""", unsafe_allow_html=True)
 
 HTML = r"""
@@ -38,7 +38,9 @@ button.pill:hover{border-color:var(--ring)}
 .card{border:1px solid var(--line);background:var(--card);border-radius:18px;padding:18px;margin-top:16px;text-align:left}
 label,h3{display:block;font-weight:400;font-size:13px;color:var(--mute);margin:0 0 10px}
 input,select{background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 11px;font-size:14px;font-family:inherit}
-select option{background:#16293a}
+select option{background:#fff;color:#111}
+.sws{display:flex;gap:10px;flex-wrap:wrap}
+.sws button{width:36px;height:36px;border-radius:50%;border:2px solid var(--line);cursor:pointer}
 .nums input{width:62px;text-align:center;margin:0 10px 0 4px}
 .row{display:flex;gap:8px}.row input{flex:1}
 .tip{margin-top:12px;font-size:14px;line-height:1.6;color:var(--ink)}
@@ -113,6 +115,23 @@ input[type=checkbox]{accent-color:#86bfae;width:17px;height:17px}
  </div>
  <div class="card"><h3>Last 7 days (focus minutes)</h3><div class="week" id="week"></div></div>
  <div class="card"><label>Daily goal (sessions)</label><input id="goal" type="number" min="1" max="20" style="width:70px"><div class="dots" id="dots"></div></div>
+ <div class="card"><label>Background</label>
+  <div class="sws" id="sws">
+   <button data-b="dusk" style="background:#183044"></button>
+   <button data-b="forest" style="background:#16302b"></button>
+   <button data-b="plum" style="background:#2c2140"></button>
+   <button data-b="night" style="background:#000"></button>
+   <button data-b="sand" style="background:#e9dfcc"></button>
+   <button data-b="mist" style="background:#d7e5ec"></button>
+  </div>
+  <div class="row" style="margin-top:14px;align-items:center">
+   <span style="font-size:13px;color:var(--mute);flex:0 0 auto">Your color</span>
+   <input type="color" id="bgc" value="#183044" style="flex:0 0 52px;padding:2px;height:36px">
+   <button class="pill" id="bgi" style="margin:0;padding:9px 16px">Upload photo</button>
+   <button class="pill" id="bgr" style="margin:0;padding:9px 16px">Reset</button>
+  </div>
+  <input type="file" id="bgf" accept="image/*" hidden>
+ </div>
  <div class="card"><label>AI key (free Gemini key from Google AI Studio, stored only in this browser)</label>
   <div class="row"><input id="key" type="password" placeholder="paste key here"><button class="pill" id="saveKey" style="margin:0;padding:9px 18px">Save</button></div>
   <div class="tip" id="keyMsg" style="color:var(--mute);font-size:12px"></div></div>
@@ -229,6 +248,42 @@ $('saveKey').onclick=()=>{S.key=$('key').value.trim();save();$('keyMsg').textCon
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('show',p.id==='p-'+b.dataset.p));});
+
+/* ---------- Background ---------- */
+const BGS={
+ dusk:['radial-gradient(120% 90% at 50% 0%,#183044,#0e1822 70%)',0],
+ forest:['linear-gradient(160deg,#16302b,#0b1a17)',0],
+ plum:['linear-gradient(160deg,#2c2140,#140f1f)',0],
+ night:['#000',0],
+ sand:['linear-gradient(160deg,#f3ecdf,#e3d9c6)',1],
+ mist:['linear-gradient(160deg,#e4eef2,#cfdde6)',1]};
+const DARK={'--ink':'#e7eef0','--mute':'#8da3ad','--line':'rgba(231,238,240,.12)','--card':'rgba(255,255,255,.04)','--ring':'#86bfae','--soft':'#b9b6dc'};
+const LIGHT={'--ink':'#1d2b33','--mute':'#5b6f78','--line':'rgba(0,0,0,.14)','--card':'rgba(255,255,255,.5)','--ring':'#3f8f7c','--soft':'#7a74b8'};
+function lum(h){const n=parseInt(h.slice(1),16);return (0.299*(n>>16)+0.587*((n>>8)&255)+0.114*(n&255))/255}
+function applyBg(){
+  const b=S.bg||{type:'preset',v:'dusk'};let css,light=false;
+  if(b.type==='preset'&&BGS[b.v]){css=BGS[b.v][0];light=!!BGS[b.v][1]}
+  else if(b.type==='color'){css=b.v;light=lum(b.v)>0.6}
+  else if(b.type==='image'){css='linear-gradient(rgba(10,20,30,.45),rgba(10,20,30,.45)),url('+b.v+') center/cover fixed'}
+  else css=BGS.dusk[0];
+  document.body.style.background=css;
+  const v=light?LIGHT:DARK;for(const k in v)document.documentElement.style.setProperty(k,v[k]);
+}
+document.querySelectorAll('#sws button').forEach(b=>b.onclick=()=>{S.bg={type:'preset',v:b.dataset.b};save();applyBg()});
+$('bgc').oninput=e=>{S.bg={type:'color',v:e.target.value};save();applyBg()};
+$('bgr').onclick=()=>{S.bg={type:'preset',v:'dusk'};save();applyBg()};
+$('bgi').onclick=()=>$('bgf').click();
+$('bgf').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{const im=new Image();
+    im.onload=()=>{const sc=Math.min(1,1600/im.width),c=document.createElement('canvas');
+      c.width=im.width*sc;c.height=im.height*sc;c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      S.bg={type:'image',v:c.toDataURL('image/jpeg',0.8)};save();applyBg()};
+    im.src=r.result};
+  r.readAsDataURL(f)};
+applyBg();
+
 renderTasks();renderChat();render();
 </script>
 """
